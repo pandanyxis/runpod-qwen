@@ -73,3 +73,13 @@ Bronnen:
 - https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md
 - https://docs.runpod.io/pods/configuration/expose-ports
 
+
+## Parallel downloaden met Hugging Face
+
+De image bevat huggingface_hub 2.0.0 en hf-xet 1.6.0. Model en vision-projector worden via de Hugging Face Hub gedownload, met parallelle chunktransfers. HF_XET_HIGH_PERFORMANCE=1 en HF_XET_NUM_CONCURRENT_RANGE_GETS=32 staan standaard aan. De werkelijke snelheid hangt ook af van de host, netwerkverbinding en opslag.
+
+HF_TOKEN is optioneel: zet een eigen read-token alleen in de RunPod environment (of lokaal in .env), nooit in GitHub of de Dockerfile. Dit openbare model kan zonder token worden gedownload. Een token op zichzelf verhoogt de snelheid niet.
+
+De Hugging Face-cache staat op het persistente volume. Afgeronde modelbestanden uit de vorige image worden hergebruikt en met SHA-256 gecontroleerd. Een onvoltooid curl .part-bestand kan niet door Xet worden hervat; bij deze eenmalige overstap begint dat bestand opnieuw. Latere starts gebruiken de Hugging Face-cache.
+
+Documentatie: https://huggingface.co/docs/huggingface_hub/package_reference/environment_variables#hf_xet_high_performance
