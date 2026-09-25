@@ -66,7 +66,7 @@ Lokaal bereikbaar op `http://127.0.0.1:8080`. Het named volume `qwen-data` bewaa
 
 ## Validatie en scope
 
-De shellsyntax en de invoervalidatie zijn lokaal gecontroleerd. De image wordt gebouwd in GitHub Actions, inclusief een controle op runtimebibliotheken. De actuele buildstatus staat onder Actions. GPU-inference moet afzonderlijk worden gecontroleerd op de Pod. Dit pakket ondersteunt tekst en afbeeldingen via de BF16 vision-projector. Optionele FastMTP-versnelling is niet ingeschakeld.
+De shellsyntax en de invoervalidatie zijn lokaal gecontroleerd. De image wordt gebouwd in GitHub Actions, inclusief een controle op runtimebibliotheken. De actuele buildstatus staat onder Actions. Op 25 september 2026 is de image op een A40 getest met 32768 context: /health ok, tekstgeneratie en herkenning van een rood vierkant links en een blauwe cirkel rechts geslaagd; /v1/models zonder sleutel gaf HTTP 401. De Xet-downloader is geïnstalleerd en de CLI/importchecks slagen. De downloadversnelling is niet gemeten, omdat het model bij de update al volledig op het volume stond. Dit pakket ondersteunt tekst en afbeeldingen via de BF16 vision-projector. Optionele FastMTP-versnelling is niet ingeschakeld.
 
 Bronnen:
 - https://huggingface.co/HauhauCS/Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-MTP-GGUF
