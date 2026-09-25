@@ -33,6 +33,8 @@ jobs:
         run: |
           docker run --rm --entrypoint /bin/bash ghcr.io/pandanyxis/runpod-qwen:vision -n /usr/local/bin/start-qwen
           docker run --rm --entrypoint /app/llama-server ghcr.io/pandanyxis/runpod-qwen:vision --version
+          docker run --rm --entrypoint /opt/hf/bin/hf ghcr.io/pandanyxis/runpod-qwen:vision download --help
+          docker run --rm --entrypoint /opt/hf/bin/python ghcr.io/pandanyxis/runpod-qwen:vision -c "import hf_xet; import huggingface_hub"
       - name: Push image
         run: |
           docker push ghcr.io/pandanyxis/runpod-qwen:${{ github.sha }}
