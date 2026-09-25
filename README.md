@@ -1,85 +1,129 @@
-# Docker voor RunPod: Qwen + llama.cpp
+# Qwen Vision on RunPod with llama.cpp
 
-Deze image bevat een vaste llama.cpp-versie met CUDA. De eerste containerstart downloadt de Q4_K_P-versie van jouw model (circa 17,9 GB) en de bijbehorende vision-projector (circa 931 MB) naar `/workspace` en controleert SHA-256. Volgende starts hergebruiken het bestand. Je API-sleutel en model zitten niet in de image.
+A public Docker image for running an authenticated, OpenAI-compatible text and image API on an NVIDIA GPU.
 
-## Automatische build op GitHub
-
-GitHub Actions bouwt en publiceert `ghcr.io/pandanyxis/runpod-qwen:vision`. Bekijk de laatste run onder Actions voordat je deployt. De basis is de officiële llama.cpp CUDA-image b11176 met CUDA 12.8.1, vastgezet op een immutable digest. De GitHub-workflow voegt onze startconfiguratie met tekst- en afbeeldingsondersteuning toe; zelf compileren is niet nodig.
-
-## Zelf bouwen en publiceren
-
-Pak het pakket uit en open een terminal in deze map. Docker met Linux-containers is nodig. Voor het bouwen is geen GPU nodig; voor inference wel een NVIDIA-GPU en een geschikte NVIDIA-driver/container-runtime.
-
-Vervang `JOUW_DOCKERHUB_NAAM` door je eigen Docker Hub-account:
-
-```sh
-docker build --platform linux/amd64 -t JOUW_DOCKERHUB_NAAM/runpod-qwen:1 .
-docker login
-docker push JOUW_DOCKERHUB_NAAM/runpod-qwen:1
+```text
+ghcr.io/pandanyxis/runpod-qwen:vision
 ```
 
-De build downloadt de officiële CUDA-image en voegt het startscript toe. De RunPod-host moet CUDA 12.8 of hoger ondersteunen. De gekozen GPU voor deployment is een A40 met 48 GB VRAM; de feitelijke beschikbaarheid wordt bij deployment gecontroleerd.
+The image is public and can be pulled without registry credentials. It downloads the model and vision projector automatically on first startup, verifies their SHA-256 checksums, and reuses them from persistent storage on later starts. Model weights and API keys are not included in the image.
 
-## RunPod-template
+## Model and runtime
 
-| Veld | Waarde |
+- Model: [HauhauCS/Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-MTP-GGUF](https://huggingface.co/HauhauCS/Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-MTP-GGUF).
+- Quantization: Q4_K_P, approximately 17.9 GB.
+- Vision projector: BF16, approximately 931 MB.
+- Runtime: official llama.cpp b11176 CUDA 12.8.1 image, pinned by digest.
+- Model revision: `993a5971fda8f30dd1b7eb2654792ba4415c7460`.
+- Text generation and image understanding are supported. This is not an image-generation server.
+- Optional FastMTP acceleration is not enabled.
+
+## Deploy on RunPod
+
+Create a GPU Pod with these settings:
+
+| Setting | Value |
 |---|---|
 | Container image | `ghcr.io/pandanyxis/runpod-qwen:vision` |
-| Docker command / start command | Leeg laten; gebruik de image-entrypoint |
-| HTTP ports | `8080` |
+| Docker command / start command | Leave empty to use the image entrypoint |
+| HTTP port | `8080` |
 | Container disk | `20 GB` |
 | Volume disk | `80 GB` |
 | Volume mount path | `/workspace` |
-| GPU | Bijvoorbeeld 1 x A40 of RTX A6000, 48 GB VRAM |
-| Environment: `LLAMA_API_KEY` | Eigen willekeurige sleutel van minimaal 32 tekens |
-| Environment: `CTX_SIZE` | `8192` |
+| GPU | One NVIDIA A40 with 48 GB VRAM was tested |
+| Host CUDA support | CUDA 12.8 or later |
+| Environment: `LLAMA_API_KEY` | A random secret containing at least 32 characters |
+| Environment: `CTX_SIZE` | `8192` by default; `32768` was also tested on an A40 |
+| Environment: `HF_TOKEN` | Optional Hugging Face read token |
 
-Gebruik voor de sleutel bijvoorbeeld `openssl rand -hex 32`, of een wachtwoordgenerator. Zet de sleutel uitsluitend in de environment variables. Voor een private image moet RunPod ook je registry-credentials krijgen.
+Generate a key using a password manager or `openssl rand -hex 32`. Set secrets in the Pod environment; never commit them to GitHub or bake them into the image.
 
-De eerste start downloadt het model; bekijk de logs tot de server gereed is. Opslag op een Pod-volume overleeft stoppen, maar niet het verwijderen van de Pod. Gebruik een network volume als het model onafhankelijk van de Pod bewaard moet blijven. Controleer het actuele GPU- en opslagtarief in RunPod voor deployment.
+Check current GPU availability and pricing before deploying. Watch the container logs during the initial download and model loading. The server is ready when `/health` returns `{"status":"ok"}`.
 
-## Verbinden
+The Pod volume survives stopping the Pod, but not deleting it. Stopped Pods still incur storage charges. Use a network volume if model storage must be independent of the Pod.
 
-Kies in de app **API providers → Custom**. Zet **Endpoint accepts image_url inputs** aan en **Known context** op `8192`. De API-base-URL moet eindigen op `/v1`. Afbeeldingen gaan als `image_url`-content mee naar `/v1/chat/completions`, bijvoorbeeld als `data:image/png;base64,...`.
+## Connect your application
 
+For an OpenAI-compatible client, select **API providers → Custom** and enter:
 
-- External llama.cpp server: `https://POD_ID-8080.proxy.runpod.net`
-- Model ID: `qwen-hauhau`
-- API-key: de ingestelde `LLAMA_API_KEY`.
+| Field | Value |
+|---|---|
+| API base URL | `https://POD_ID-8080.proxy.runpod.net/v1` |
+| Model ID | `qwen-hauhau` |
+| API key | Your `LLAMA_API_KEY` |
+| Endpoint accepts image_url inputs | Enabled |
+| Known context | Match the Pod's `CTX_SIZE` |
 
-Je screenshot vermeldt “Localhost only”. Als je app daarom geen externe server accepteert, gebruik API providers / OpenAI-compatible met base URL `https://POD_ID-8080.proxy.runpod.net/v1`.
+Replace `POD_ID` with your own Pod ID. The OpenAI-compatible base URL must end in `/v1`.
 
-Controleer `/health`: na laden geeft deze publieke route `{"status":"ok"}`. `/v1/models` en `/v1/chat/completions` vereisen `Authorization: Bearer JE_SLEUTEL`. Controleer bij deployment ook dat een aanvraag naar `/v1/models` zonder sleutel wordt geweigerd.
+Clients that support remote llama.cpp servers directly may use `https://POD_ID-8080.proxy.runpod.net`. If that client option only accepts localhost, use its OpenAI-compatible custom provider instead.
 
-RunPod heeft een proxy-timeout van 100 seconden; lange promptverwerking kan die overschrijden. Gebruik streaming waar de client dit ondersteunt. De API wordt via RunPod HTTPS bereikbaar.
+Images are sent as `image_url` content items to `/v1/chat/completions`, including data URLs such as `data:image/png;base64,...`. The model describes or analyzes the supplied image.
 
-## Lokaal met Docker Compose
+The health endpoint is public. The model list and chat endpoints require `Authorization: Bearer YOUR_API_KEY`. Confirm that a request to `/v1/models` without a key returns HTTP 401.
 
-Kopieer `.env.example` naar `.env` en vul de sleutel in. Met een recente Docker Compose-versie die `gpus` ondersteunt:
+RunPod exposes the API over HTTPS. Its HTTP proxy has a 100-second timeout, so long prompt processing can time out. Use streaming where supported by the client.
+
+## Parallel Hugging Face downloads
+
+The image includes `huggingface_hub==2.0.0` and `hf-xet==1.6.0`. The Hugging Face downloader fetches the model and vision projector with parallel chunk transfers.
+
+These defaults are included:
+
+```text
+HF_HOME=/workspace/qwen-runpod/hf-cache
+HF_XET_HIGH_PERFORMANCE=1
+HF_XET_NUM_CONCURRENT_RANGE_GETS=32
+HF_HUB_DOWNLOAD_TIMEOUT=60
+```
+
+The cache is stored on the persistent volume. Actual download speed depends on host bandwidth, the remote service, and storage performance.
+
+This public model does not require a Hugging Face token. If needed, provide `HF_TOKEN` through the RunPod environment or a local `.env` file. Adding a token alone does not guarantee faster downloads.
+
+Completed model files from the previous curl-based image are reused and checksum-verified. An incomplete curl `.part` file cannot be resumed by Xet, so that file starts again during the one-time migration. Later starts reuse the Hugging Face cache.
+
+## Run locally with Docker Compose
+
+Docker with Linux containers, an NVIDIA GPU, and a compatible NVIDIA driver/container runtime are required. Use a Docker Compose version that supports `gpus`.
+
+Copy `.env.example` to `.env`, set `LLAMA_API_KEY`, then run:
 
 ```sh
 docker compose up --build -d
 docker compose logs -f
 ```
 
-Lokaal bereikbaar op `http://127.0.0.1:8080`. Het named volume `qwen-data` bewaart het model. De lokale Compose-config bindt aan localhost; RunPod verzorgt de externe HTTPS-toegang bij deployment.
+The local API is available at `http://127.0.0.1:8080`. The Compose configuration binds to localhost, and the `qwen-data` named volume stores the model.
 
-## Validatie en scope
+## Build and publish your own image
 
-De shellsyntax en de invoervalidatie zijn lokaal gecontroleerd. De image wordt gebouwd in GitHub Actions, inclusief een controle op runtimebibliotheken. De actuele buildstatus staat onder Actions. Op 25 september 2026 is de image op een A40 getest met 32768 context: /health ok, tekstgeneratie en herkenning van een rood vierkant links en een blauwe cirkel rechts geslaagd; /v1/models zonder sleutel gaf HTTP 401. De Xet-downloader is geïnstalleerd en de CLI/importchecks slagen. De downloadversnelling is niet gemeten, omdat het model bij de update al volledig op het volume stond. Dit pakket ondersteunt tekst en afbeeldingen via de BF16 vision-projector. Optionele FastMTP-versnelling is niet ingeschakeld.
+No GPU is required to build the image. GitHub Actions builds and publishes this repository's `vision`, `latest`, and commit-SHA tags. See [Actions](https://github.com/pandanyxis/runpod-qwen/actions) for build results.
 
-Bronnen:
-- https://huggingface.co/HauhauCS/Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-MTP-GGUF
-- https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md
-- https://docs.runpod.io/pods/configuration/expose-ports
+To publish under your own Docker Hub account:
 
+```sh
+docker build --platform linux/amd64 -t YOUR_DOCKERHUB_USERNAME/runpod-qwen:1 .
+docker login
+docker push YOUR_DOCKERHUB_USERNAME/runpod-qwen:1
+```
 
-## Parallel downloaden met Hugging Face
+The build extends the official prebuilt llama.cpp CUDA image; no llama.cpp compilation is required. For reproducible deployments, use a published image digest instead of a moving tag.
 
-De image bevat huggingface_hub 2.0.0 en hf-xet 1.6.0. Model en vision-projector worden via de Hugging Face Hub gedownload, met parallelle chunktransfers. HF_XET_HIGH_PERFORMANCE=1 en HF_XET_NUM_CONCURRENT_RANGE_GETS=32 staan standaard aan. De werkelijke snelheid hangt ook af van de host, netwerkverbinding en opslag.
+## Validation
 
-HF_TOKEN is optioneel: zet een eigen read-token alleen in de RunPod environment (of lokaal in .env), nooit in GitHub of de Dockerfile. Dit openbare model kan zonder token worden gedownload. Een token op zichzelf verhoogt de snelheid niet.
+On September 25, 2026, the image was tested on an A40 with a 32,768-token context:
 
-De Hugging Face-cache staat op het persistente volume. Afgeronde modelbestanden uit de vorige image worden hergebruikt en met SHA-256 gecontroleerd. Een onvoltooid curl .part-bestand kan niet door Xet worden hervat; bij deze eenmalige overstap begint dat bestand opnieuw. Latere starts gebruiken de Hugging Face-cache.
+- Health endpoint returned `ok`.
+- Text generation succeeded.
+- Image understanding correctly identified a red square on the left and a blue circle on the right.
+- Requests to `/v1/models` without an API key returned HTTP 401.
 
-Documentatie: https://huggingface.co/docs/huggingface_hub/package_reference/environment_variables#hf_xet_high_performance
+GitHub Actions checks shell syntax, the server binary, the Hugging Face CLI, and Python package imports. Xet download acceleration was not benchmarked: the model files were already present when that image update was deployed.
+
+## References
+
+- [Model repository](https://huggingface.co/HauhauCS/Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-MTP-GGUF)
+- [llama.cpp server documentation](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md)
+- [RunPod HTTP ports](https://docs.runpod.io/pods/configuration/expose-ports)
+- [Hugging Face Xet configuration](https://huggingface.co/docs/huggingface_hub/package_reference/environment_variables#hf_xet_high_performance)
