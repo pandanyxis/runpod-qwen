@@ -3,7 +3,8 @@
 FROM ghcr.io/ggml-org/llama.cpp@sha256:1f4b9cf58982dd4d7cc497aea31b1a456ca9a3a1f94f527d317d3fdee0d60ab6
 COPY entrypoint.sh /usr/local/bin/start-qwen
 RUN chmod +x /usr/local/bin/start-qwen
-ENV CTX_SIZE=8192
+ENV CTX_SIZE=8192 \
+    LD_LIBRARY_PATH=/app:/usr/local/cuda/lib64
 WORKDIR /workspace
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60m --retries=3 \
