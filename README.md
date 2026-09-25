@@ -1,10 +1,10 @@
 # Docker voor RunPod: Qwen + llama.cpp
 
-Deze image bevat een vaste llama.cpp-versie met CUDA. De eerste containerstart downloadt de Q4_K_P-versie van jouw model (circa 17,9 GB) naar `/workspace` en controleert SHA-256. Volgende starts hergebruiken het bestand. Je API-sleutel en model zitten niet in de image.
+Deze image bevat een vaste llama.cpp-versie met CUDA. De eerste containerstart downloadt de Q4_K_P-versie van jouw model (circa 17,9 GB) en de bijbehorende vision-projector (circa 931 MB) naar `/workspace` en controleert SHA-256. Volgende starts hergebruiken het bestand. Je API-sleutel en model zitten niet in de image.
 
 ## Automatische build op GitHub
 
-GitHub Actions bouwt en publiceert `ghcr.io/pandanyxis/runpod-qwen:latest`. Bekijk de laatste run onder Actions voordat je deployt. De automatische build richt zich op CUDA-architectuur 8.6 (A40, RTX A6000 en RTX 3090). Voor andere GPU-generaties moet de workflow worden aangepast.
+GitHub Actions bouwt en publiceert `ghcr.io/pandanyxis/runpod-qwen:vision`. Bekijk de laatste run onder Actions voordat je deployt. De automatische build richt zich op CUDA-architectuur 8.6 (A40, RTX A6000 en RTX 3090). Voor andere GPU-generaties moet de workflow worden aangepast.
 
 ## Zelf bouwen en publiceren
 
@@ -24,7 +24,7 @@ De build compileert llama.cpp en kan enige tijd duren. Standaard zijn A100, A40/
 
 | Veld | Waarde |
 |---|---|
-| Container image | `ghcr.io/pandanyxis/runpod-qwen:latest` |
+| Container image | `ghcr.io/pandanyxis/runpod-qwen:vision` |
 | Docker command / start command | Leeg laten; gebruik de image-entrypoint |
 | HTTP ports | `8080` |
 | Container disk | `20 GB` |
@@ -39,6 +39,9 @@ Gebruik voor de sleutel bijvoorbeeld `openssl rand -hex 32`, of een wachtwoordge
 De eerste start downloadt het model; bekijk de logs tot de server gereed is. Opslag op een Pod-volume overleeft stoppen, maar niet het verwijderen van de Pod. Gebruik een network volume als het model onafhankelijk van de Pod bewaard moet blijven. Controleer het actuele GPU- en opslagtarief in RunPod voor deployment.
 
 ## Verbinden
+
+Kies in de app **API providers → Custom**. Zet **Endpoint accepts image_url inputs** aan en **Known context** op `8192`. De API-base-URL moet eindigen op `/v1`. Afbeeldingen gaan als `image_url`-content mee naar `/v1/chat/completions`, bijvoorbeeld als `data:image/png;base64,...`.
+
 
 - External llama.cpp server: `https://POD_ID-8080.proxy.runpod.net`
 - Model ID: `qwen-hauhau`
@@ -63,7 +66,7 @@ Lokaal bereikbaar op `http://127.0.0.1:8080`. Het named volume `qwen-data` bewaa
 
 ## Validatie en scope
 
-De shellsyntax en de invoervalidatie zijn lokaal gecontroleerd. De image wordt gebouwd in GitHub Actions, inclusief een controle op runtimebibliotheken. De actuele buildstatus staat onder Actions. GPU-inference moet afzonderlijk worden gecontroleerd op de Pod. Dit pakket start tekstinference; optionele FastMTP-versnelling en de vision-projector zijn niet ingeschakeld.
+De shellsyntax en de invoervalidatie zijn lokaal gecontroleerd. De image wordt gebouwd in GitHub Actions, inclusief een controle op runtimebibliotheken. De actuele buildstatus staat onder Actions. GPU-inference moet afzonderlijk worden gecontroleerd op de Pod. Dit pakket ondersteunt tekst en afbeeldingen via de BF16 vision-projector. Optionele FastMTP-versnelling is niet ingeschakeld.
 
 Bronnen:
 - https://huggingface.co/HauhauCS/Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-MTP-GGUF
