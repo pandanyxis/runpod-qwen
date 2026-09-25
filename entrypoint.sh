@@ -19,26 +19,18 @@ PROJECTOR=mmproj-Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-BF16.gguf
 PROJECTOR_SHA=5681b690bcb8eb10cd28d62d078cb4e01521a3ea4880a3fc7d54de72de2dd142
 mkdir -p "$ROOT/models"
 cd "$ROOT/models"
-if [[ ! -f "$MODEL" ]]; then
-  echo 'Downloading the model to the persistent volume...'
-  curl --fail --location --retry 5 --retry-delay 5 --continue-at - \
-    "https://huggingface.co/HauhauCS/Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-MTP-GGUF/resolve/$HF_REV/$MODEL" \
-    --output "$MODEL.part"
-  printf '%s  %s\n' "$SHA" "$MODEL.part" | sha256sum --check -
-  mv "$MODEL.part" "$MODEL"
-else
-  printf '%s  %s\n' "$SHA" "$MODEL" | sha256sum --check -
+missing=()
+[[ -f "$MODEL" ]] || missing+=("$MODEL")
+[[ -f "$PROJECTOR" ]] || missing+=("$PROJECTOR")
+if (( ${#missing[@]} )); then
+  echo 'Downloading with Hugging Face Xet: parallel file and chunk transfers...'
+  /opt/hf/bin/hf download \
+    HauhauCS/Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-MTP-GGUF \
+    "${missing[@]}" --revision "$HF_REV" --local-dir "$ROOT/models"
 fi
-if [[ ! -f "$PROJECTOR" ]]; then
-  echo 'Downloading the vision projector...'
-  curl --fail --location --retry 5 --retry-delay 5 --continue-at - \
-    "https://huggingface.co/HauhauCS/Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-MTP-GGUF/resolve/$HF_REV/$PROJECTOR" \
-    --output "$PROJECTOR.part"
-  printf '%s  %s\n' "$PROJECTOR_SHA" "$PROJECTOR.part" | sha256sum --check -
-  mv "$PROJECTOR.part" "$PROJECTOR"
-else
-  printf '%s  %s\n' "$PROJECTOR_SHA" "$PROJECTOR" | sha256sum --check -
-fi
+echo 'Verifying model and vision projector SHA-256...'
+printf '%s  %s\n' "$SHA" "$MODEL" "$PROJECTOR_SHA" "$PROJECTOR" | sha256sum --check -
+
 echo 'Starting llama-server with text and vision on port 8080.'
 exec /app/llama-server \
   --model "$ROOT/models/$MODEL" --alias qwen-hauhau \
