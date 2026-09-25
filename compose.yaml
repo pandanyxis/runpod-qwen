@@ -1,0 +1,15 @@
+services:
+  qwen:
+    build: .
+    image: runpod-qwen:local
+    gpus: all
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      LLAMA_API_KEY: ${LLAMA_API_KEY:?Set LLAMA_API_KEY in .env}
+      CTX_SIZE: ${CTX_SIZE:-8192}
+    volumes:
+      - qwen-data:/workspace
+    restart: unless-stopped
+volumes:
+  qwen-data:
