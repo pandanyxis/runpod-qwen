@@ -2,7 +2,11 @@
 
 Deze image bevat een vaste llama.cpp-versie met CUDA. De eerste containerstart downloadt de Q4_K_P-versie van jouw model (circa 17,9 GB) naar `/workspace` en controleert SHA-256. Volgende starts hergebruiken het bestand. Je API-sleutel en model zitten niet in de image.
 
-## Bouwen en publiceren
+## Automatische build op GitHub
+
+GitHub Actions bouwt en publiceert `ghcr.io/pandanyxis/runpod-qwen:latest`. Bekijk de laatste run onder Actions voordat je deployt. De automatische build richt zich op CUDA-architectuur 8.6 (A40, RTX A6000 en RTX 3090). Voor andere GPU-generaties moet de workflow worden aangepast.
+
+## Zelf bouwen en publiceren
 
 Pak het pakket uit en open een terminal in deze map. Docker met Linux-containers is nodig. Voor het bouwen is geen GPU nodig; voor inference wel een NVIDIA-GPU en een geschikte NVIDIA-driver/container-runtime.
 
@@ -20,7 +24,7 @@ De build compileert llama.cpp en kan enige tijd duren. Standaard zijn A100, A40/
 
 | Veld | Waarde |
 |---|---|
-| Container image | `JOUW_DOCKERHUB_NAAM/runpod-qwen:1` |
+| Container image | `ghcr.io/pandanyxis/runpod-qwen:latest` |
 | Docker command / start command | Leeg laten; gebruik de image-entrypoint |
 | HTTP ports | `8080` |
 | Container disk | `20 GB` |
@@ -59,9 +63,10 @@ Lokaal bereikbaar op `http://127.0.0.1:8080`. Het named volume `qwen-data` bewaa
 
 ## Validatie en scope
 
-De shellsyntax en de invoervalidatie zijn lokaal gecontroleerd. Docker is in de gebruikte omgeving niet beschikbaar: de image is nog niet gebouwd, gepubliceerd of op een GPU getest. Dit pakket start tekstinference; optionele FastMTP-versnelling en de vision-projector zijn niet ingeschakeld.
+De shellsyntax en de invoervalidatie zijn lokaal gecontroleerd. De image wordt gebouwd in GitHub Actions, inclusief een controle op runtimebibliotheken. De actuele buildstatus staat onder Actions. GPU-inference moet afzonderlijk worden gecontroleerd op de Pod. Dit pakket start tekstinference; optionele FastMTP-versnelling en de vision-projector zijn niet ingeschakeld.
 
 Bronnen:
 - https://huggingface.co/HauhauCS/Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-MTP-GGUF
 - https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md
 - https://docs.runpod.io/pods/configuration/expose-ports
+
