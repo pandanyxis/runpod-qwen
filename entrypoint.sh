@@ -40,7 +40,7 @@ else
   printf '%s  %s\n' "$PROJECTOR_SHA" "$PROJECTOR" | sha256sum --check -
 fi
 echo 'Starting llama-server with text and vision on port 8080.'
-exec /opt/llama/bin/llama-server \
+exec /app/llama-server \
   --model "$ROOT/models/$MODEL" --alias qwen-hauhau \
   --mmproj "$ROOT/models/$PROJECTOR" \
   --host 0.0.0.0 --port 8080 \
