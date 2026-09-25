@@ -4,7 +4,7 @@ Deze image bevat een vaste llama.cpp-versie met CUDA. De eerste containerstart d
 
 ## Automatische build op GitHub
 
-GitHub Actions bouwt en publiceert `ghcr.io/pandanyxis/runpod-qwen:vision`. Bekijk de laatste run onder Actions voordat je deployt. De automatische build richt zich op CUDA-architectuur 8.6 (A40, RTX A6000 en RTX 3090). Voor andere GPU-generaties moet de workflow worden aangepast.
+GitHub Actions bouwt en publiceert `ghcr.io/pandanyxis/runpod-qwen:vision`. Bekijk de laatste run onder Actions voordat je deployt. De basis is de officiële llama.cpp CUDA-image b11176 met CUDA 12.8.1, vastgezet op een immutable digest. De GitHub-workflow voegt onze startconfiguratie met tekst- en afbeeldingsondersteuning toe; zelf compileren is niet nodig.
 
 ## Zelf bouwen en publiceren
 
@@ -18,7 +18,7 @@ docker login
 docker push JOUW_DOCKERHUB_NAAM/runpod-qwen:1
 ```
 
-De build compileert llama.cpp en kan enige tijd duren. Standaard zijn A100, A40/RTX A6000, L40/RTX 4090 en H100-architecturen opgenomen. Voor een andere GPU-architectuur moet je de build-argumentwaarde `CUDA_ARCHITECTURES` aanpassen. Blackwell is niet opgenomen in deze standaardbuild.
+De build downloadt de officiële CUDA-image en voegt het startscript toe. De RunPod-host moet CUDA 12.8 of hoger ondersteunen. De gekozen GPU voor deployment is een A40 met 48 GB VRAM; de feitelijke beschikbaarheid wordt bij deployment gecontroleerd.
 
 ## RunPod-template
 
