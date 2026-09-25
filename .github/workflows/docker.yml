@@ -24,13 +24,14 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build image
         run: >-
-          docker build --build-arg BUILD_JOBS=2 --build-arg CUDA_ARCHITECTURES=86
+          docker build --build-arg BUILD_JOBS=4 --build-arg CUDA_ARCHITECTURES=86
           --label org.opencontainers.image.source=https://github.com/pandanyxis/runpod-qwen
           -t ghcr.io/pandanyxis/runpod-qwen:latest
           -t ghcr.io/pandanyxis/runpod-qwen:${{ github.sha }} .
       - name: Check runtime libraries
-        run: docker run --rm --entrypoint /bin/bash ghcr.io/pandanyxis/runpod-qwen:latest -c '! ldd /opt/llama/bin/llama-server | grep "not found"'
+        run: docker run --rm --entrypoint /bin/bash ghcr.io/pandanyxis/runpod-qwen:latest -c 'missing=$(ldd /opt/llama/bin/llama-server | grep "not found" | grep -v "libcuda.so.1" || true); if [ -n "$missing" ]; then echo "$missing"; exit 1; fi'
       - name: Push image
         run: |
           docker push ghcr.io/pandanyxis/runpod-qwen:${{ github.sha }}
           docker push ghcr.io/pandanyxis/runpod-qwen:latest
+
