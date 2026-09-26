@@ -143,7 +143,7 @@ On September 25, 2026, the image was tested on an A40 with a 32,768-token contex
 - Image understanding correctly identified a red square on the left and a blue circle on the right.
 - Requests to `/v1/models` without an API key returned HTTP 401.
 
-GitHub Actions checks shell syntax, the server binary, the Hugging Face CLI, and Python package imports. Xet download acceleration was not benchmarked: the model files were already present when that image update was deployed.
+The Open WebUI image also passed a CPU-only container smoke test on September 26, 2026: the browser HTML and health route were served, the bootstrapped admin signed in successfully, and unauthenticated model requests returned HTTP 401. Full GPU chat through Open WebUI has not yet been tested on a new Pod. GitHub Actions checks shell syntax, the server binary, the Hugging Face CLI, and Python package imports. Xet download acceleration was not benchmarked: the model files were already present when that image update was deployed.
 
 ## References
 
