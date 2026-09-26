@@ -20,6 +20,10 @@ The image is public and can be pulled without registry credentials. It downloads
 
 ## Deploy on RunPod
 
+[Open the public RunPod template](https://console.runpod.io/hub/template/dmx2k72drz)
+
+The template uses the tested image pinned by digest, 20 GB container disk, an 80 GB persistent volume, HTTP port 8080, and a 32,768-token context. Select an NVIDIA GPU with 48 GB VRAM and CUDA 12.8 or later. Before deploying, **add the environment variable `LLAMA_API_KEY` with your own random secret of at least 32 characters**. No shared API key is included; startup intentionally fails if you do not provide one. You may also add an optional `HF_TOKEN`. Creating or viewing the template does not start a GPU; deploying a Pod incurs the prices shown by RunPod.
+
 Create a GPU Pod with these settings:
 
 | Setting | Value |
