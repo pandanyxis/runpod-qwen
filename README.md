@@ -1,12 +1,32 @@
 # Qwen Vision on RunPod with llama.cpp
 
-A public Docker image for running an authenticated, OpenAI-compatible text and image API on an NVIDIA GPU.
+A public Docker image for running Qwen with an optional Open WebUI browser chat and an authenticated OpenAI-compatible text and image API on one NVIDIA GPU.
 
 ```text
 ghcr.io/pandanyxis/runpod-qwen:vision
 ```
 
 The image is public and can be pulled without registry credentials. It downloads the model and vision projector automatically on first startup, verifies their SHA-256 checksums, and reuses them from persistent storage on later starts. Model weights and API keys are not included in the image.
+
+## Choose how to chat
+
+Set `ENABLE_WEBUI=true` (default) to start **Open WebUI and the API together** in a single Pod. Open `https://POD_ID-3000.proxy.runpod.net` in your browser; no desktop client is required. The API remains available at `https://POD_ID-8080.proxy.runpod.net/v1` for external apps.
+
+Set `ENABLE_WEBUI=false` to start **only the API**. This mode does not require Open WebUI login variables. The same image supports both modes; changing the environment setting takes effect after restarting the container.
+
+When browser chat is enabled, set these additional environment variables before deployment:
+
+| Variable | Value |
+|---|---|
+| `WEBUI_ADMIN_EMAIL` | Your email address, used as the browser login name |
+| `WEBUI_ADMIN_PASSWORD` | A unique password of 16–72 ASCII characters |
+| `ENABLE_WEBUI` | `true` for browser + API, `false` for API only |
+
+Open WebUI creates the administrator on its first startup and disables public signup. Later starts reuse that account: changing these bootstrap variables does not reset an existing account's password. Change the password in Open WebUI's account settings.
+
+The model connection is configured automatically, with `qwen-hauhau` selected and image input enabled. Open WebUI can load while the model is downloading; chat becomes available when llama.cpp finishes loading. Chats, uploads, the database, and the session secret are kept under `/workspace/open-webui`. Keep this volume to preserve them.
+
+Open WebUI 0.11.4 runs on CPU; llama.cpp uses the GPU. Both processes are supervised by the container entrypoint. If either exits, the container stops rather than silently leaving half the service running.
 
 ## Model and runtime
 
@@ -22,7 +42,7 @@ The image is public and can be pulled without registry credentials. It downloads
 
 [Open the public RunPod template](https://console.runpod.io/hub/template/dmx2k72drz)
 
-The template uses the tested image pinned by digest, 20 GB container disk, an 80 GB persistent volume, HTTP port 8080, and a 32,768-token context. Select an NVIDIA GPU with 48 GB VRAM and CUDA 12.8 or later. Before deploying, **add the environment variable `LLAMA_API_KEY` with your own random secret of at least 32 characters**. No shared API key is included; startup intentionally fails if you do not provide one. You may also add an optional `HF_TOKEN`. Creating or viewing the template does not start a GPU; deploying a Pod incurs the prices shown by RunPod.
+The template uses the tested image pinned by digest, 20 GB container disk, an 80 GB persistent volume, HTTP ports 3000 and 8080, and a 32,768-token context. Select an NVIDIA GPU with 48 GB VRAM and CUDA 12.8 or later. Before deploying, **add the environment variable `LLAMA_API_KEY` with your own random secret of at least 32 characters**. No shared API key is included; startup intentionally fails if you do not provide one. You may also add an optional `HF_TOKEN`. Creating or viewing the template does not start a GPU; deploying a Pod incurs the prices shown by RunPod.
 
 Create a GPU Pod with these settings:
 
@@ -30,7 +50,7 @@ Create a GPU Pod with these settings:
 |---|---|
 | Container image | `ghcr.io/pandanyxis/runpod-qwen:vision` |
 | Docker command / start command | Leave empty to use the image entrypoint |
-| HTTP port | `8080` |
+| HTTP ports | `3000` (browser chat), `8080` (API) |
 | Container disk | `20 GB` |
 | Volume disk | `80 GB` |
 | Volume mount path | `/workspace` |
@@ -91,14 +111,14 @@ Completed model files from the previous curl-based image are reused and checksum
 
 Docker with Linux containers, an NVIDIA GPU, and a compatible NVIDIA driver/container runtime are required. Use a Docker Compose version that supports `gpus`.
 
-Copy `.env.example` to `.env`, set `LLAMA_API_KEY`, then run:
+Copy `.env.example` to `.env`, set `LLAMA_API_KEY` and the browser login variables above (or set `ENABLE_WEBUI=false`), then run:
 
 ```sh
 docker compose up --build -d
 docker compose logs -f
 ```
 
-The local API is available at `http://127.0.0.1:8080`. The Compose configuration binds to localhost, and the `qwen-data` named volume stores the model.
+Local browser chat is available at `http://127.0.0.1:3000` when enabled. The local API is available at `http://127.0.0.1:8080`. The Compose configuration binds to localhost, and the `qwen-data` named volume stores the model.
 
 ## Build and publish your own image
 
