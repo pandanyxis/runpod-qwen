@@ -5,8 +5,12 @@ services:
     gpus: all
     ports:
       - "127.0.0.1:8080:8080"
+      - "127.0.0.1:3000:3000"
     environment:
       LLAMA_API_KEY: ${LLAMA_API_KEY:?Set LLAMA_API_KEY in .env}
+      ENABLE_WEBUI: ${ENABLE_WEBUI:-true}
+      WEBUI_ADMIN_EMAIL: ${WEBUI_ADMIN_EMAIL:-}
+      WEBUI_ADMIN_PASSWORD: ${WEBUI_ADMIN_PASSWORD:-}
       HF_TOKEN: ${HF_TOKEN:-}
       CTX_SIZE: ${CTX_SIZE:-8192}
     volumes:
