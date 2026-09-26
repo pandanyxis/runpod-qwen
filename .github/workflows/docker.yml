@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: [Dockerfile, entrypoint.sh, .dockerignore, .github/workflows/docker.yml]
+    paths: [Dockerfile, entrypoint.sh, start-services.sh, healthcheck.sh, .dockerignore, .github/workflows/docker.yml]
 permissions:
   contents: read
   packages: write
@@ -35,6 +35,30 @@ jobs:
           docker run --rm --entrypoint /app/llama-server ghcr.io/pandanyxis/runpod-qwen:vision --version
           docker run --rm --entrypoint /opt/hf/bin/hf ghcr.io/pandanyxis/runpod-qwen:vision download --help
           docker run --rm --entrypoint /opt/hf/bin/python ghcr.io/pandanyxis/runpod-qwen:vision -c "import hf_xet; import huggingface_hub"
+          docker run --rm --entrypoint /bin/bash ghcr.io/pandanyxis/runpod-qwen:vision -n /usr/local/bin/start-services.sh
+          docker run --rm --entrypoint /bin/bash ghcr.io/pandanyxis/runpod-qwen:vision -n /usr/local/bin/healthcheck.sh
+          docker run --rm --entrypoint /opt/webui/bin/open-webui ghcr.io/pandanyxis/runpod-qwen:vision serve --help
+      - name: Smoke test browser login
+        run: |
+          docker run -d --name webui-smoke -p 3000:3000 --entrypoint /opt/webui/bin/open-webui \
+            -e DATA_DIR=/tmp/webui-test -e WEBUI_AUTH=true -e ENABLE_SIGNUP=false \
+            -e WEBUI_SECRET_KEY=ci-only-not-a-deployment-secret \
+            -e WEBUI_ADMIN_EMAIL=ci@example.com -e WEBUI_ADMIN_PASSWORD=ci-only-password-12345 \
+            -e ENABLE_OLLAMA_API=false -e RAG_EMBEDDING_ENGINE=openai \
+            ghcr.io/pandanyxis/runpod-qwen:vision serve --host 0.0.0.0 --port 3000
+          ready=false
+          for i in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:3000/health; then ready=true; break; fi
+            sleep 5
+          done
+          if [ "$ready" != true ]; then docker logs webui-smoke; exit 1; fi
+          curl -fsS http://127.0.0.1:3000/ | grep -qi '<html'
+          curl -fsS http://127.0.0.1:3000/api/v1/auths/signin \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"ci@example.com","password":"ci-only-password-12345"}' \
+            | python3 -c 'import json,sys; r=json.load(sys.stdin); assert r.get("token") and r.get("role")=="admin"'
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/api/models)" = 401
+          docker rm -f webui-smoke
       - name: Push image
         run: |
           docker push ghcr.io/pandanyxis/runpod-qwen:${{ github.sha }}
